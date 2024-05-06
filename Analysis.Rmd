@@ -1,0 +1,117 @@
+---
+title: "K-means & K-medoid clustering in product segmentation: ASDS 6303 Final Project"
+author: "Submitted by Utkarsh Pant"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(GGally)
+library(readxl)
+library(factoextra)
+library(cluster)
+```
+
+## Loading the dataset
+
+```{r}
+product_data = read_excel('./dataset/sku_data.xlsx')
+kable(head(product_data),
+      booktabs = TRUE,
+      format = "latex",
+      caption = "Dataset head") %>% kable_styling(latex_options = "hold_position")
+```
+
+```{r}
+summary(product_data)
+```
+
+```{r}
+product_data <- select(product_data, -c("ID"))
+```
+
+## Checking correlation
+
+```{r}
+library(ggcorrplot)
+correlation = cor(product_data)
+ggcorrplot(correlation, hc.order = TRUE, type = "lower",
+   lab = TRUE)
+```
+
+Let's only consider the `Outbound number` and `Total outbound` features in our dataset to perform the clustering, due to high correlation.
+
+```{r}
+product_subset <- select(product_data, c("Outbound number", "Total outbound"))
+```
+
+## Scaling data
+
+```{r}
+product_subset_scaled = scale(product_subset)
+```
+
+## K-means clustering
+
+Checking a scree-plot for the ideal number of clusters, we see:
+
+```{r}
+fviz_nbclust(product_subset_scaled, kmeans, method = "wss") +
+geom_vline(xintercept = 3, linetype = 2)
+```
+
+```{r}
+set.seed(8093)
+model.kmeans <- kmeans(product_subset_scaled, nstart = 20, centers = 3)
+print(model.kmeans)
+```
+
+## Aggregating cluster characteristics
+
+```{r}
+kable(aggregate(product_data, by=list(cluster=model.kmeans$cluster), mean),
+      format = "latex",
+      booktabs = TRUE) %>% kable_styling(position="center")
+```
+
+```{r}
+fviz_cluster(model.kmeans, product_subset_scaled)
+```
+
+## Silhouette scores
+
+[TODO]
+
+# K-medoid clustering
+
+Visualizing the ideal number of clusters for `pam` (k-medoid clustering) using `fvz_nbclust`:
+
+```{r}
+fviz_nbclust(product_subset_scaled, pam, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2)
+
+```
+
+It appears that k-medoid clustering for the same product-data does best with 5 clusters. Performing clustering with 5 clusters:
+
+```{r}
+set.seed(8093)
+model.kmedoid <- pam(product_subset_scaled, k = 5)
+model.kmedoid
+```
+
+## Aggregating cluster characteristics
+
+```{r}
+kable(aggregate(product_data, by=list(cluster=model.kmedoid$cluster), mean),
+      format = "latex",
+      booktabs = TRUE) %>% kable_styling(position="center")
+```
+
+```{r}
+fviz_cluster(model.kmedoid, product_subset_scaled)
+```
