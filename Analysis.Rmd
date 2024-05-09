@@ -1,6 +1,6 @@
 ---
 title: "K-means & K-medoid clustering in product segmentation: ASDS 6303 Final Project"
-author: "Submitted by Utkarsh Pant"
+author: "Submitted by Utkarsh Pant (1002170893)"
 date: "`r Sys.Date()`"
 output: pdf_document
 ---
@@ -15,6 +15,8 @@ library(readxl)
 library(factoextra)
 library(cluster)
 ```
+
+> **Note regarding seed:** please note that my student ID ends with "0893", which should be the seed wherever required. However, leading 0's are not allowed in the seed (0893 = 893, in essence). Hence, the first 2 digits have been swapped to get the seed "8093".
 
 ## Loading the dataset
 
@@ -40,10 +42,10 @@ product_data <- select(product_data, -c("ID"))
 library(ggcorrplot)
 correlation = cor(product_data)
 ggcorrplot(correlation, hc.order = TRUE, type = "lower",
-   lab = TRUE)
+   lab = TRUE, title = "Correlation heatmap for numeric features.")
 ```
 
-Let's only consider the `Outbound number` and `Total outbound` features in our dataset to perform the clustering, due to high correlation.
+Let's only consider the `Outbound number` and `Total outbound` features in our dataset to perform the clustering, due to high correlation among them.
 
 ```{r}
 product_subset <- select(product_data, c("Outbound number", "Total outbound"))
@@ -75,16 +77,21 @@ print(model.kmeans)
 ```{r}
 kable(aggregate(product_data, by=list(cluster=model.kmeans$cluster), mean),
       format = "latex",
+            caption = "Average cluster characteristics for K-Means clustering",
       booktabs = TRUE) %>% kable_styling(position="center")
 ```
 
 ```{r}
-fviz_cluster(model.kmeans, product_subset_scaled)
+fviz_cluster(model.kmeans, product_subset_scaled, main = "Clusters in our dataset, determined by K-Means")
 ```
 
 ## Silhouette scores
 
-[TODO]
+```{r}
+silhouette_score.k_means <- silhouette(model.kmeans$cluster, dist(product_data))
+silhouette_score.k_means <- mean(silhouette_score.k_means[, 'sil_width'])
+silhouette_score.k_means
+```
 
 # K-medoid clustering
 
@@ -100,18 +107,37 @@ It appears that k-medoid clustering for the same product-data does best with 5 c
 
 ```{r}
 set.seed(8093)
-model.kmedoid <- pam(product_subset_scaled, k = 5)
-model.kmedoid
+model.k_medoid <- pam(product_subset_scaled, k = 5)
+model.k_medoid
 ```
 
 ## Aggregating cluster characteristics
 
 ```{r}
-kable(aggregate(product_data, by=list(cluster=model.kmedoid$cluster), mean),
+kable(aggregate(product_data, by=list(cluster=model.k_medoid$cluster), mean),
       format = "latex",
+      caption = "Average cluster characteristics for K-Medoid clustering",
       booktabs = TRUE) %>% kable_styling(position="center")
 ```
 
 ```{r}
-fviz_cluster(model.kmedoid, product_subset_scaled)
+fviz_cluster(model.k_medoid, product_subset_scaled)
 ```
+
+### Silhouette scores
+
+```{r}
+silhouette_score.k_medoid <- silhouette(model.k_medoid$cluster, dist(product_data))
+silhouette_score.k_medoid <- mean(silhouette_score.k_medoid[, 'sil_width'])
+silhouette_score.k_medoid
+```
+
+## Comparing clusters
+
+From our analysis and calculation of silhouette scores, we can see that K-means performs better with a silhouette score of `r silhouette_score.k_means`, while K-Medoid performs rather poor clustering with an average silhouette score of `r silhouette_score.k_medoid`.
+
+Since these are clustering algorithms, the quality of clustering is measured using metrics like the silhouette scores, gap statistics, etc. Metrics like accuracy, AUC, etc. cannot be determined since there is no "prediction" of target classes being performed in unsupervised clustering!
+
+## Conclusion
+
+In conclusion, we can see that the quality of clustering has room to improve. For this, we could consider better feature selection to cluster on the basis of; we might select such features based on high correlation, domain-knowledge and the "relevance" of features to the problem statement and the aspects of the data we are interested in.
